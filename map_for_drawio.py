@@ -56,16 +56,16 @@ else:
 # Use Sub-Saharan Africa for the map
 africa = subsaharan_africa
 
-# Create the figure with a clean white background
-fig, ax = plt.subplots(figsize=(14, 16), facecolor='white')
-ax.set_facecolor('white')
+# Create the figure with scientific styling
+fig, ax = plt.subplots(figsize=(10, 12), facecolor='white')
+ax.set_facecolor('#f8f8f8')  # Very subtle background color for land/sea contrast
 
-# Plot all countries with a uniform color for Draw.io base map
+# Plot all countries with a uniform color for Draw.io base map (scientific style)
 africa.plot(
     ax=ax, 
-    color='#f2f2f2',      # Light gray for all countries 
-    edgecolor='#999999',  # Medium gray borders
-    linewidth=0.5         # Thin borders
+    color='#f0f0f0',      # Very light gray for all countries 
+    edgecolor='#777777',  # Darker gray borders
+    linewidth=0.3         # Very thin borders for scientific look
 )
 
 # Remove axis and grid
@@ -85,57 +85,102 @@ focus_countries = {
     'COD': 'Democratic Republic of the Congo', 
     'KEN': 'Kenya',
     'ZAF': 'South Africa',
-    'SOM': 'Somalia'
+    'SOM': 'Somalia',
+    'SOMALILAND': 'Somaliland'  # Adding Somaliland
 }
 
 # Create a new column to identify focus countries
 africa['focus'] = africa['ISO_A3'].apply(lambda x: x in focus_countries.keys())
 
-# Different shades of blue for each country
+# More scientific color scheme using ColorBrewer-style colors (commonly used in academic publications)
+# Using a monochromatic grayscale for non-highlighted countries and a sequential color scheme for highlighted countries
 colors = {
-    'COD': '#1e3799',  # DRC - Deep blue
-    'SOM': '#3867d6',  # Somalia - Medium blue
-    'KEN': '#4b7bec',  # Kenya - Bright blue
-    'ZAF': '#0abde3',  # South Africa - Light blue
-    'other': '#f2f2f2'  # Other countries - Light gray
+    'COD': '#b3cde3',      # DRC - Light blue-gray
+    'SOM': '#8c96c6',      # Somalia - Medium purple-gray
+    'KEN': '#8856a7',      # Kenya - Dark purple
+    'ZAF': '#810f7c',      # South Africa - Deep purple
+    'SOMALILAND': '#9e9ac8', # Somaliland - Medium purple (more consistent with scheme)
+    'other': '#f0f0f0'      # Other countries - Very light gray
 }
 
 # Create a color column
 africa['color'] = africa['ISO_A3'].apply(lambda x: colors.get(x, colors['other']))
 
-# Create a new figure
-fig2, ax2 = plt.subplots(figsize=(14, 16), facecolor='white')
+# Create a new figure with scientific styling
+fig2, ax2 = plt.subplots(figsize=(10, 12), facecolor='white')
+ax2.set_facecolor('#f8f8f8')
 
-# Plot background countries
+# Plot background countries with scientific styling
 africa[~africa['focus']].plot(
     ax=ax2,
     color=colors['other'],
-    edgecolor='#999999',
-    linewidth=0.5
+    edgecolor='#777777',
+    linewidth=0.3
 )
 
 # Plot each focus country separately with its unique color
 for iso, country in focus_countries.items():
-    country_data = africa[africa['ISO_A3'] == iso]
-    if not country_data.empty:
-        country_data.plot(
-            ax=ax2,
-            color=colors[iso],
-            edgecolor='#333333',
-            linewidth=1.0
-        )
+    # Special handling for Somaliland as it's not in standard datasets
+    if iso == 'SOMALILAND':
+        # Approximate coordinates for Somaliland polygon
+        # These are simplified coordinates for the Somaliland territory
+        somaliland_coords = [
+            (43.0, 8.0), (44.0, 8.0), (45.0, 8.0), (46.0, 8.0), 
+            (49.0, 11.5), (48.0, 11.5), (47.0, 11.5), (46.0, 11.0),
+            (45.0, 10.5), (44.0, 10.0), (43.0, 9.0), (43.0, 8.0)
+        ]
         
-        # Add country label at centroid
-        centroid = country_data.iloc[0]['geometry'].centroid
+        # Create a polygon for Somaliland
+        from shapely.geometry import Polygon
+        somaliland_polygon = Polygon(somaliland_coords)
+        
+        # Plot Somaliland
+        import matplotlib.pyplot as plt
+        from matplotlib.patches import Polygon as MplPolygon
+        somaliland_patch = MplPolygon(
+            somaliland_coords, 
+            closed=True, 
+            color=colors['SOMALILAND'], 
+            edgecolor='#444444',
+            linewidth=0.5,  # Same border thickness as other countries
+            alpha=1.0
+        )
+        ax2.add_patch(somaliland_patch)
+        
+        # Add Somaliland label (in bold to match other countries)
         ax2.text(
-            centroid.x, centroid.y,
-            country_data.iloc[0]['NAME'],
-            fontsize=10,
+            46.0, 9.5,  # Approximate center of Somaliland
+            'Somaliland',
+            fontsize=8,
             ha='center',
             va='center',
-            color='black',
-            fontweight='bold'
+            color='#333333',
+            fontweight='bold',  # Changed to bold to match other country labels
+            fontfamily='Arial'
         )
+    else:
+        # Standard country plotting
+        country_data = africa[africa['ISO_A3'] == iso]
+        if not country_data.empty:
+            country_data.plot(
+                ax=ax2,
+                color=colors[iso],
+                edgecolor='#444444',
+                linewidth=0.5
+            )
+            
+            # Add country label at centroid
+            centroid = country_data.iloc[0]['geometry'].centroid
+            ax2.text(
+                centroid.x, centroid.y,
+                country_data.iloc[0]['NAME'],
+                fontsize=8,
+                ha='center',
+                va='center',
+                color='#333333',
+                fontweight='bold',  # Changed all country labels to bold
+                fontfamily='Arial'
+            )
 
 # Remove axis
 ax2.set_axis_off()
@@ -144,18 +189,19 @@ ax2.set_axis_off()
 ax2.set_xlim(-18, 52)
 ax2.set_ylim(-35, 15)
 
-# Create a legend
-patches = [mpatches.Patch(color=colors[iso], label=country) for iso, country in focus_countries.items()]
-legend = plt.legend(
-    handles=patches,
-    loc='lower right',
-    frameon=True,
-    framealpha=0.9,
-    title='Countries of Interest'
-)
+# No legend for scientific style
+# Add a scale bar instead (common in scientific maps) - positioned to the right side of the map
+scale_bar_length = 1000  # km
+scale_x_start = 50  # Moving further to the right
+scale_y = -20  # Moving up a bit to avoid South Africa
+ax2.plot([scale_x_start, scale_x_start + 10], [scale_y, scale_y], 'k-', linewidth=1.0)
+ax2.text(scale_x_start + 5, scale_y - 1.5, f'{scale_bar_length} km', 
+        ha='center', fontsize=8, fontfamily='Arial')
 
-# Save highlighted map
-plt.savefig('subsaharan_africa_highlighted.png', dpi=300, bbox_inches='tight')
+# No north arrow per user request
+
+# Save highlighted map with higher DPI for publication quality
+plt.savefig('subsaharan_africa_highlighted.png', dpi=600, bbox_inches='tight')
 print("Highlighted map saved as 'subsaharan_africa_highlighted.png'")
 
 # Now create a DrawIO XML file that incorporates the map and adds the migration arrows
@@ -175,24 +221,24 @@ def create_drawio_file():
           <mxGeometry x="50" y="50" width="1000" height="1000" as="geometry" />
         </mxCell>
         
-        <!-- Migration Arrows -->
+        <!-- Migration Flows -->
         <!-- DRC to Kenya -->
-        <mxCell id="3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;startArrow=none;startFill=0;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#1e3799;curved=1;" edge="1" parent="1" source="drc_center" target="kenya_center">
+        <mxCell id="3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;startArrow=none;startFill=0;endArrow=classic;endFill=1;strokeWidth=2;strokeColor=#b3cde3;curved=1;" edge="1" parent="1" source="drc_center" target="kenya_center">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         
         <!-- DRC to South Africa -->
-        <mxCell id="4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;startArrow=none;startFill=0;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#1e3799;curved=1;" edge="1" parent="1" source="drc_center" target="sa_center">
+        <mxCell id="4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;startArrow=none;startFill=0;endArrow=classic;endFill=1;strokeWidth=2;strokeColor=#b3cde3;curved=1;" edge="1" parent="1" source="drc_center" target="sa_center">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         
         <!-- Somalia to Kenya -->
-        <mxCell id="5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;startArrow=none;startFill=0;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#3867d6;curved=1;" edge="1" parent="1" source="somalia_center" target="kenya_center">
+        <mxCell id="5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;startArrow=none;startFill=0;endArrow=classic;endFill=1;strokeWidth=2;strokeColor=#8c96c6;curved=1;" edge="1" parent="1" source="somalia_center" target="kenya_center">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         
         <!-- Somalia to South Africa -->
-        <mxCell id="6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;startArrow=none;startFill=0;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#3867d6;curved=1;" edge="1" parent="1" source="somalia_center" target="sa_center">
+        <mxCell id="6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;startArrow=none;startFill=0;endArrow=classic;endFill=1;strokeWidth=2;strokeColor=#8c96c6;curved=1;" edge="1" parent="1" source="somalia_center" target="sa_center">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         
@@ -209,32 +255,25 @@ def create_drawio_file():
           <mxGeometry x="650" y="350" width="10" height="10" as="geometry" />
         </mxCell>
         
+        <mxCell id="somaliland_center" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="620" y="300" width="10" height="10" as="geometry" />
+        </mxCell>
+        
         <mxCell id="sa_center" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=none;strokeColor=none;" vertex="1" parent="1">
           <mxGeometry x="530" y="650" width="10" height="10" as="geometry" />
         </mxCell>
         
-        <!-- Legend -->
-        <mxCell id="7" value="Migration Flows" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" vertex="1" parent="1">
-          <mxGeometry x="800" y="600" width="100" height="20" as="geometry" />
+        <!-- Somaliland to Kenya -->
+        <mxCell id="12" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=1;entryX=0.5;entryY=0;startArrow=none;startFill=0;endArrow=classic;endFill=1;strokeWidth=2;strokeColor=#9e9ac8;curved=1;" edge="1" parent="1" source="somaliland_center" target="kenya_center">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
         
-        <mxCell id="8" value="" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#1e3799;" edge="1" parent="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="800" y="640" as="sourcePoint" />
-            <mxPoint x="850" y="640" as="targetPoint" />
-          </mxGeometry>
+        <!-- Somaliland to South Africa -->
+        <mxCell id="13" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;startArrow=none;startFill=0;endArrow=classic;endFill=1;strokeWidth=2;strokeColor=#9e9ac8;curved=1;" edge="1" parent="1" source="somaliland_center" target="sa_center">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
         
-        <mxCell id="9" value="DRC Migration" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
-          <mxGeometry x="860" y="630" width="100" height="20" as="geometry" />
-        </mxCell>
-        
-        <mxCell id="10" value="" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#3867d6;" edge="1" parent="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="800" y="670" as="sourcePoint" />
-            <mxPoint x="850" y="670" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
+        <!-- No legend for scientific style -->
         
         <mxCell id="11" value="Somalia Migration" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
           <mxGeometry x="860" y="660" width="120" height="20" as="geometry" />
